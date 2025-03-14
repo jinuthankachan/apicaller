@@ -1,5 +1,33 @@
 <template>
   <div class="api-view">
+    <div class="actions-bar">
+      <el-button @click="showImportDialog = true" type="primary" plain>
+        <el-icon><Upload /></el-icon>
+        Import cURL
+      </el-button>
+    </div>
+
+    <el-dialog
+      v-model="showImportDialog"
+      title="Import cURL Command"
+      width="50%"
+    >
+      <el-input
+        v-model="curlCommand"
+        type="textarea"
+        :rows="5"
+        placeholder="Paste your cURL command here..."
+      />
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showImportDialog = false">Cancel</el-button>
+          <el-button type="primary" @click="importCurl">
+            Import
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <el-form @submit.prevent="handleSubmit" :model="form" label-width="120px">
       <el-form-item label="URL">
         <el-input v-model="form.url" placeholder="Enter API URL" />
@@ -52,35 +80,26 @@
 
     <div class="requests-list">
       <h2>Request History</h2>
-      <el-timeline>
-        <el-timeline-item
-          v-for="request in requests"
-          :key="request.id"
-          :type="getStatusType(request.status)"
-          :timestamp="getTimestamp(request)"
-        >
-          <el-card>
-            <template #header>
-              <div class="request-header">
-                <el-tag>{{ request.method }}</el-tag>
-                <span class="url">{{ request.url }}</span>
-                <el-tag :type="getStatusTag(request.status)">
-                  {{ request.status.toUpperCase() }}
-                </el-tag>
-              </div>
-            </template>
-            
-            <div v-if="request.status === 'completed'" class="response">
-              <strong>Response:</strong>
-              <pre>{{ JSON.stringify(request.response, null, 2) }}</pre>
+      <el-collapse>
+        <el-collapse-item v-for="(request, index) in requests" :key="index" :title="`${request.method} ${request.url} - ${request.status}`">
+          <div>
+            <p><strong>Method:</strong> {{ request.method }}</p>
+            <p><strong>URL:</strong> {{ request.url }}</p>
+            <p><strong>Time Taken:</strong> {{ request.duration }} ms</p>
+            <div v-if="request.response">
+              <p><strong>Response Status:</strong> {{ request.response.status }}</p>
+              <p><strong>Response Headers:</strong></p>
+              <pre>{{ JSON.stringify(request.response.headers, null, 2) }}</pre>
+              <p><strong>Response Body:</strong></p>
+              <pre>{{ JSON.stringify(request.response.data, null, 2) }}</pre>
             </div>
-            
-            <div v-if="request.status === 'error'" class="error">
-              <strong>Error:</strong> {{ request.error }}
+            <div v-if="request.status === 'error' && request.error">
+              <p><strong>Error:</strong></p>
+              <pre>{{ request.error }}</pre>
             </div>
-          </el-card>
-        </el-timeline-item>
-      </el-timeline>
+          </div>
+        </el-collapse-item>
+      </el-collapse>
     </div>
   </div>
 </template>
@@ -88,7 +107,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useApiStore } from '@/stores/apiStore'
-import { Delete } from '@element-plus/icons-vue'
+import { Delete, Upload } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { parseCurlCommand } from '@/utils/curlParser'
 
 const apiStore = useApiStore()
 
@@ -109,8 +130,11 @@ const headerKeys = ref([''])
 const headerValues = ref([''])
 
 const concurrencyLimit = ref(3)
+const showImportDialog = ref(false)
+const curlCommand = ref('')
 
-const requests = computed(() => apiStore.requests)
+const requests = computed(() => apiStore.requests.slice().reverse())
+const lastRequest = computed(() => requests.value[requests.value.length - 1])
 
 function addHeader() {
   headerRows.value.push(1)
@@ -148,22 +172,12 @@ function updateConcurrencyLimit(value: number) {
   apiStore.setConcurrencyLimit(value)
 }
 
-function getStatusType(status: string): '' | 'primary' | 'success' | 'warning' | 'danger' {
+function getStatusClass(status: string): string {
   switch (status) {
-    case 'pending': return 'primary'
-    case 'running': return 'warning'
-    case 'completed': return 'success'
-    case 'error': return 'danger'
-    default: return ''
-  }
-}
-
-function getStatusTag(status: string): '' | 'info' | 'success' | 'warning' | 'danger' {
-  switch (status) {
-    case 'pending': return 'info'
-    case 'running': return 'warning'
-    case 'completed': return 'success'
-    case 'error': return 'danger'
+    case 'pending': return 'status-processing'
+    case 'running': return 'status-processing'
+    case 'completed': return 'status-success'
+    case 'error': return 'status-error'
     default: return ''
   }
 }
@@ -173,6 +187,27 @@ function getTimestamp(request: any): string {
     return `Duration: ${request.duration.toFixed(2)}ms`
   }
   return ''
+}
+
+function importCurl() {
+  try {
+    const parsed = parseCurlCommand(curlCommand.value)
+    
+    // Update form with parsed values
+    form.value.url = parsed.url
+    form.value.method = parsed.method
+    form.value.body = parsed.body
+    
+    // Update headers
+    headerRows.value = Object.keys(parsed.headers).map(() => 1)
+    headerKeys.value = Object.keys(parsed.headers)
+    headerValues.value = Object.values(parsed.headers)
+    
+    showImportDialog.value = false
+    curlCommand.value = ''
+  } catch (error) {
+    ElMessage.error('Failed to parse cURL command. Please check the format.')
+  }
 }
 </script>
 
@@ -222,4 +257,33 @@ function getTimestamp(request: any): string {
 .requests-list {
   margin-top: 30px;
 }
-</style>]]>
+
+.actions-bar {
+  margin-bottom: 20px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.status-processing {
+  color: orange;
+  animation: blink 1s step-end infinite;
+}
+
+.status-success {
+  color: green;
+}
+
+.status-error {
+  color: red;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+</style>
