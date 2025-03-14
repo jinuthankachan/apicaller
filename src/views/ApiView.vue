@@ -236,11 +236,14 @@ function importCurl() {
   word-break: break-all;
 }
 
-.response pre {
-  background: #f5f7fa;
+pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: #f5f5f5;
   padding: 10px;
   border-radius: 4px;
-  overflow-x: auto;
+  border: 1px solid #ddd;
 }
 
 .error {
