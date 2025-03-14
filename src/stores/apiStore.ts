@@ -8,8 +8,12 @@ interface ApiRequest {
   headers: Record<string, string>
   body: string
   status: 'pending' | 'running' | 'completed' | 'error'
-  response?: any
-  error?: string
+  response?: {
+    status: number
+    headers: any
+    data: any
+  }
+  error?: any
   duration?: number
 }
 
@@ -18,8 +22,6 @@ export const useApiStore = defineStore('api', {
     requests: [] as ApiRequest[],
     concurrencyLimit: 3,
     activeRequests: 0,
-    response: null, // Add a state variable to store the response
-    error: null // Add a state variable to store any errors
   }),
   
   actions: {
@@ -52,7 +54,7 @@ export const useApiStore = defineStore('api', {
 
       this.requests[index].status = 'running'
 
-      const proxyBaseUrl = 'http://localhost:3000/api'; // Proxy server base URL
+      const proxyBaseUrl = 'http://localhost:3000/api'; 
       const originalUrl = new URL(request.url);
       const originalBaseUrl = `${originalUrl.protocol}//${originalUrl.host}`;
 
@@ -70,19 +72,32 @@ export const useApiStore = defineStore('api', {
           data: request.body ? JSON.parse(request.body) : undefined
         })
 
-        this.requests[index].response = response.data
-        this.requests[index].status = 'completed'
-        this.response = response.data; // Store the response data
-        this.error = null; // Clear any previous errors
-        console.log('Response:', response.data);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+
+        this.requests[index] = {
+          ...this.requests[index],
+          status: 'completed',
+          duration,
+          response: {
+            status: response.status,
+            headers: response.headers,
+            data: response.data
+          },
+        }
+        console.log('Response:', this.requests[index].response);
       } catch (error: any) {
-        this.requests[index].error = error.message
-        this.requests[index].status = 'error'
-        this.response = null; // Clear any previous response
-        this.error = error.response ? error.response.data : error.message; // Store the error message
-        console.error('Error:', this.error);
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+
+        this.requests[index] = {
+          ...this.requests[index],
+          status: 'error',
+          duration,
+          error: error.response ? error.response.data : error.message,
+        }
+        console.error('Error:', this.requests[index].error);
       } finally {
-        this.requests[index].duration = performance.now() - startTime
         this.activeRequests--
         this.processQueue()
       }
