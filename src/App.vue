@@ -1,7 +1,7 @@
 `<template>
   <el-container>
     <el-header>
-      <h1>API Caller</h1>
+      <h1 class="title">API Caller</h1>
     </el-header>
     <el-main>
       <router-view></router-view>
@@ -23,5 +23,11 @@ import { ElContainer, ElHeader, ElMain } from 'element-plus'
 
 .el-main {
   padding: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 2.5em;
+  font-weight: 500;
 }
 </style>`

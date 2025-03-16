@@ -195,6 +195,7 @@ function updateConcurrencyLimit(value: number) {
 const getStatusStyle = (status: string) => {
   switch (status) {
     case 'error': return { color: 'red', borderColor: 'red' };
+    case 'cancelled': return { color: 'red', borderColor: 'red' };
     case 'completed': return { color: 'green', borderColor: 'green' };
     case 'pending': return { color: 'orange', borderColor: 'orange' };
     case 'running': return { color: 'blue', borderColor: 'blue' };

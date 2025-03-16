@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import type { AxiosError, CancelTokenSource } from 'axios'
 
 interface ApiRequest {
   id: string
@@ -22,7 +23,7 @@ export const useApiStore = defineStore('api', {
     requests: [] as ApiRequest[],
     concurrencyLimit: 3,
     activeRequests: 0,
-    cancelTokens: new Map<string, axios.CancelTokenSource>(),
+    cancelTokens: new Map<string, CancelTokenSource>(),
   }),
   
   actions: {
@@ -91,7 +92,7 @@ export const useApiStore = defineStore('api', {
           },
         }
         console.log('Response:', this.requests[index].response);
-      } catch (error) {
+      } catch (error: unknown) {
         const endTime = performance.now();
         const duration = endTime - startTime;
 
@@ -102,11 +103,12 @@ export const useApiStore = defineStore('api', {
             duration,
           }
         } else {
+          const axiosError = error as AxiosError
           this.requests[index] = {
             ...this.requests[index],
             status: 'error',
             duration,
-            error: error.response ? error.response.data : error.message,
+            error: axiosError.response?.data || axiosError.message,
           }
           console.error('Error:', this.requests[index].error);
         }
