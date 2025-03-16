@@ -81,7 +81,17 @@
     <div class="requests-list">
       <h2>Request History</h2>
       <el-collapse>
-        <el-collapse-item v-for="(request, index) in requests" :key="index" :title="`${request.method} ${request.url} - ${request.status}`">
+        <el-collapse-item v-for="(request, index) in requests" :key="index">
+          <template #title>
+            <span v-html="`<strong>${request.method}</strong> ${request.url}  `"></span>
+            <span 
+              class="status-box" 
+              :class="getStatusClass(request.status)"
+              :style="getStatusStyle(request.status)"
+            >
+              {{ request.status }}
+            </span>
+    </template>
           <div>
             <p><strong>Method:</strong> {{ request.method }}</p>
             <p><strong>URL:</strong> {{ request.url }}</p>
@@ -172,15 +182,19 @@ function updateConcurrencyLimit(value: number) {
   apiStore.setConcurrencyLimit(value)
 }
 
-function getStatusClass(status: string): string {
+const getStatusStyle = (status: string) => {
   switch (status) {
-    case 'pending': return 'status-processing'
-    case 'running': return 'status-processing'
-    case 'completed': return 'status-success'
-    case 'error': return 'status-error'
-    default: return ''
+    case 'error': return { color: 'red', borderColor: 'red' };
+    case 'completed': return { color: 'green', borderColor: 'green' };
+    case 'pending': return { color: 'orange', borderColor: 'orange' };
+    case 'running': return { color: 'blue', borderColor: 'blue' };
+    default: return {};
   }
-}
+};
+
+const getStatusClass = (status: string) => {
+  return ['pending', 'running'].includes(status) ? 'blinking' : '';
+};
 
 function getTimestamp(request: any): string {
   if (request.duration) {
@@ -212,6 +226,9 @@ function importCurl() {
 </script>
 
 <style scoped>
+.blinking {
+  animation: blink 1s infinite;
+}
 .api-view {
   max-width: 1200px;
   margin: 0 auto;
@@ -271,22 +288,30 @@ pre {
   gap: 10px;
 }
 
-.status-processing {
-  color: orange;
-  animation: blink 1s step-end infinite;
+.el-collapse-item:first-child .el-collapse-item__header {
+  font-size: 1.5em;
+  font-weight: 600;
 }
 
-.status-success {
-  color: green;
+.status-box {
+  padding: 1px 6px;
+  border: 1px solid;
+  border-radius: 4px;
+  margin-left: auto;
+  display: inline-block;
+  line-height: 1;
+  min-width: 80px;
+  text-align: center;
 }
 
-.status-error {
-  color: red;
+.el-collapse-item:first-child .status-box {
+  font-size: 1.2em;
+  padding: 2px 8px;
+  min-width: 100px;
 }
 
 @keyframes blink {
-  50% {
-    opacity: 0;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 </style>
