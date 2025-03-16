@@ -7,7 +7,7 @@ interface ApiRequest {
   method: string
   headers: Record<string, string>
   body: string
-  status: 'pending' | 'running' | 'completed' | 'error'
+  status: 'pending' | 'running' | 'completed' | 'error' | 'cancelled'
   response?: {
     status: number
     headers: any
@@ -22,6 +22,7 @@ export const useApiStore = defineStore('api', {
     requests: [] as ApiRequest[],
     concurrencyLimit: 3,
     activeRequests: 0,
+    cancelTokens: new Map<string, axios.CancelTokenSource>(),
   }),
   
   actions: {
@@ -64,12 +65,16 @@ export const useApiStore = defineStore('api', {
       // Set the original base URL in headers to pass to the proxy server
       request.headers['X-Original-Base-Url'] = originalBaseUrl;
 
+      const cancelTokenSource = axios.CancelToken.source()
+      this.cancelTokens.set(request.id, cancelTokenSource)
+
       try {
         const response = await axios({
           url: proxiedUrl,
           method: request.method,
           headers: request.headers,
-          data: request.body ? JSON.parse(request.body) : undefined
+          data: request.body ? JSON.parse(request.body) : undefined,
+          cancelToken: cancelTokenSource.token
         })
 
         const endTime = performance.now();
@@ -86,20 +91,36 @@ export const useApiStore = defineStore('api', {
           },
         }
         console.log('Response:', this.requests[index].response);
-      } catch (error: any) {
+      } catch (error) {
         const endTime = performance.now();
         const duration = endTime - startTime;
 
-        this.requests[index] = {
-          ...this.requests[index],
-          status: 'error',
-          duration,
-          error: error.response ? error.response.data : error.message,
+        if (axios.isCancel(error)) {
+          this.requests[index] = {
+            ...this.requests[index],
+            status: 'cancelled',
+            duration,
+          }
+        } else {
+          this.requests[index] = {
+            ...this.requests[index],
+            status: 'error',
+            duration,
+            error: error.response ? error.response.data : error.message,
+          }
+          console.error('Error:', this.requests[index].error);
         }
-        console.error('Error:', this.requests[index].error);
       } finally {
+        this.cancelTokens.delete(request.id)
         this.activeRequests--
         this.processQueue()
+      }
+    },
+
+    cancelRequest(requestId: string) {
+      const cancelToken = this.cancelTokens.get(requestId)
+      if (cancelToken) {
+        cancelToken.cancel('Request cancelled by user')
       }
     },
 

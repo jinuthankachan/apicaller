@@ -84,14 +84,24 @@
         <el-collapse-item v-for="(request, index) in requests" :key="index">
           <template #title>
             <span v-html="`<strong>${request.method}</strong> ${request.url}  `"></span>
-            <span 
-              class="status-box" 
-              :class="getStatusClass(request.status)"
-              :style="getStatusStyle(request.status)"
-            >
-              {{ request.status }}
-            </span>
-    </template>
+            <div class="status-container">
+              <span 
+                class="status-box" 
+                :class="getStatusClass(request.status)"
+                :style="getStatusStyle(request.status)"
+              >
+                {{ request.status }}
+              </span>
+              <el-button 
+                v-if="request.status === 'running'"
+                type="danger"
+                size="mini"
+                @click.stop="cancelRequest(request.id)"
+              >
+                Cancel
+              </el-button>
+            </div>
+          </template>
           <div>
             <p><strong>Method:</strong> {{ request.method }}</p>
             <p><strong>URL:</strong> {{ request.url }}</p>
@@ -223,6 +233,10 @@ function importCurl() {
     ElMessage.error('Failed to parse cURL command. Please check the format.')
   }
 }
+
+function cancelRequest(requestId: string) {
+  apiStore.cancelRequest(requestId)
+}
 </script>
 
 <style scoped>
@@ -308,6 +322,13 @@ pre {
   font-size: 1.2em;
   padding: 2px 8px;
   min-width: 100px;
+}
+
+.status-container {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @keyframes blink {
