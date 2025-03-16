@@ -36,10 +36,6 @@ app.use('/api', (req, res, next) => {
       '^/api': '', // Remove the /api prefix
     },
     headers,
-    onProxyReq: (proxyReq, req, res) => {
-      proxyReq.setHeader('X-API-Token-Name', 'trustin');
-      proxyReq.setHeader('X-API-Token-Secret', 'KLsr5E_PBLjasH0ixCW9edUqZFbSSobAomLsLvMXykM=');
-    },
     onProxyRes: (proxyRes, req, res) => {
       proxyRes.headers['Access-Control-Allow-Origin'] = '*'; // Allow requests from your app's origin
       proxyRes.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, X-API-Token-Name, X-API-Token-Secret';

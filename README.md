@@ -21,7 +21,11 @@ A Vue 3 + TypeScript application for testing and monitoring API endpoints.
    ```bash
    npm install
    ```
-3. Start the development server:
+3. Start the proxy server:
+   ```bash
+   node proxy-server/server.js
+   ```
+4. Start the development server:
    ```bash
    npm run dev
    ```
